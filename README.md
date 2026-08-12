@@ -31,7 +31,7 @@ Confirm it:
 
 ## Requirements
 
-The following commands must be installed before running `./setup.sh`: `git`, `curl`, `unzip`, `tar`, `gcc`, `nasm`, `make`, `patch`, `jq`. The script will check for these.
+The following commands must be installed before running `./setup.sh`: `git`, `curl`, `unzip`, `tar`, `gcc`, `nasm`, `make`, `patch`, `jq`, `mkfs.ext2` (from `e2fsprogs`). The script will check for these.
 
 To run VMs locally you'll also need [Firecracker](https://github.com/firecracker-microvm/firecracker) installed and accessible, `screen`, and your user must be in the `kvm` group:
 
@@ -54,7 +54,7 @@ cd BareMetal-App
 ./setup.sh
 ```
 
-This runs a "pre-flight" check to verify the prerequisites above are installed, then clones `BareMetal-AppPort` and `BareMetal-Firecracker` alongside this repo, copies the bundled libraries in `files/` (lwIP, mbedTLS, musl) into the app-port build directory, and builds everything. It also creates a 512M `disk.img` (a plain zeroed file -- BMFS, the on-disk format BareMetal apps use, lays out its own superblock/directory table/file data directly on the raw disk, with no filesystem of its own underneath) for the VM to boot against.
+This runs a "pre-flight" check to verify the prerequisites above are installed (including `mkfs.ext2`, from `e2fsprogs`), then clones `BareMetal-AppPort` and `BareMetal-Firecracker` alongside this repo, copies the bundled libraries in `files/` (lwIP, mbedTLS, musl) into the app-port build directory, and builds everything. It also creates a 512M `disk.img`, formatted as a plain EXT2 filesystem (`mkfs.ext2 -b 4096` -- the 4096-byte block size matters, see `setup.sh`'s comment) for the VM to boot against; `BareMetal-AppPort/port/ext4_shim.c` mounts it through lwext4.
 
 Re-running `./setup.sh` starts from a clean slate — it calls `./clean.sh` first, which removes the cloned repos, `baremetal.elf`, and `disk.img`.
 

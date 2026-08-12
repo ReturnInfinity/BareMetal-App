@@ -11,7 +11,7 @@ echo -e "- Running clean"
 
 # Pre-flight checks: make sure required utilities are installed
 echo -e "- Pre-flight check"
-for cmd in git curl unzip tar gcc nasm make patch jq; do
+for cmd in git curl unzip tar gcc nasm make patch jq mkfs.ext2; do
 	if ! command -v "$cmd" > /dev/null 2>&1; then
 		echo "Error: required command '$cmd' not found. Please install it before running this script." >&2
 		exit 1
@@ -34,18 +34,21 @@ cd ..
 DISK="$PWD/disk.img"
 DISKSIZE=512M
 
-# Create the disk image if it doesn't already exist -- a plain zeroed
-# (sparse) file, not an ext2 filesystem: BMFS (port/bmfs.c in
-# BareMetal-AppPort) treats this as raw sectors it lays its own
-# superblock/directory table/file data across directly, with no
-# filesystem of its own underneath. Formatting it with mkfs.ext2 would
-# leave non-zero ext2 metadata sitting in the exact sectors BMFS uses
-# for its own superblock/directory table, which BMFS then misreads as
-# pre-existing (garbage) directory entries -- corrupting block
-# allocation for the first file any app creates.
+# Create the disk image if it doesn't already exist, formatted as a
+# plain EXT2 filesystem: BareMetal-AppPort/port/ext4_shim.c mounts it
+# through lwext4 rather than reading/writing raw sectors directly (as
+# the old BMFS format did). -b 4096 is required, not cosmetic --
+# BareMetal-AppPort/port/lwext4_port/blockdev_baremetal.c presents the
+# disk to lwext4 as a block device with a fixed 4096-byte physical
+# block size (matching the kernel's b_nvs_read/b_nvs_write sector
+# size); an EXT2 image built with a smaller logical block size (e.g.
+# mkfs.ext2's own 1024-byte default) makes lwext4's logical-to-
+# physical block count computation truncate to 0, silently turning
+# every block read/write into a no-op -- which surfaces as a confusing
+# ENOSPC on the very first file an app creates, not a mount failure.
 if [ ! -f "$DISK" ]; then
-#	echo "Creating $DISKSIZE disk image"
-	truncate -s "$DISKSIZE" "$DISK"
+	echo "Creating $DISKSIZE EXT2 disk image at $DISK"
+	mkfs.ext2 -q -F -b 4096 "$DISK" "$DISKSIZE"
 fi
 
 echo -e "\n${BOLD}Complete!${NORMAL}\n"
