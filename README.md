@@ -54,7 +54,7 @@ cd BareMetal-App
 ./setup.sh
 ```
 
-This runs a "pre-flight" check to verify the prerequisites above are installed (including `mkfs.ext2`, from `e2fsprogs`), then clones `BareMetal-AppPort` and `BareMetal-Firecracker` alongside this repo, copies the bundled libraries in `files/` (lwIP, mbedTLS, musl) into the app-port build directory, and builds everything. It also creates a 512M `disk.img`, formatted as a plain EXT2 filesystem (`mkfs.ext2 -b 4096` -- the 4096-byte block size matters, see `setup.sh`'s comment) for the VM to boot against; `BareMetal-AppPort/port/ext4_shim.c` mounts it through lwext4.
+This runs a "pre-flight" check to verify the prerequisites above are installed (including `mkfs.ext2`, from `e2fsprogs`), then clones `BareMetal-AppPort` and `BareMetal-Firecracker` alongside this repo, copies the bundled libraries in `files/` (lwIP, mbedTLS, musl) into the app-port build directory, and builds everything. It also creates a 512M `disk.img`, formatted as a plain EXT2 filesystem (`mkfs.ext2 -b 4096` - the 4096-byte block size matters, see `setup.sh`'s comment) for the VM to boot against; `BareMetal-AppPort/port/ext4_shim.c` mounts it through lwext4.
 
 Re-running `./setup.sh` starts from a clean slate — it calls `./clean.sh` first, which removes the cloned repos, `baremetal.elf`, and `disk.img`.
 
@@ -66,10 +66,10 @@ Any standard C program is a valid starting point. For example:
 echo -e '#include <stdio.h>\n\nint main(void) {\n    printf("Hello, World!\\n");\n    return 0;\n}' > hello.c
 ```
 
-## Test
+## Build it
 
 ```
-./test.sh hello.c
+./1-build.sh hello.c
 ```
 
 You can also use multiple C files:
@@ -82,8 +82,28 @@ This will:
 
 1. Build your program into a BareMetal `.app` via `BareMetal-AppPort/build-app.sh`.
 2. Link it into a bootable kernel image via `BareMetal-Firecracker/build.sh`, producing `baremetal.elf` in the repo root.
-3. If a `tap0` network device exists, boot `baremetal.elf` locally under Firecracker and print its console output.
-4. Optionally prompt to upload `baremetal.elf` to the BareMetal Cloud and launch it as an instance.
+
+## Run it
+
+```
+./2-run.sh
+```
+
+Boot `baremetal.elf` locally under Firecracker and print its console output.
+
+## Upload it
+
+Uploading requires a `BM_API_KEY`. Generate one from the [dashboard](https://baremetal.returninfinity.com) (or `POST /api/api-keys` while signed in), then:
+
+```
+export BM_API_KEY=YOURKEY
+```
+
+Upload `baremetal.elf` to the BareMetal Cloud and launch it as an instance.
+
+```
+./3-upload.sh
+```
 
 ### Local networking (optional)
 
