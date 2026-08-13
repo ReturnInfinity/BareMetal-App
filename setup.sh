@@ -25,6 +25,9 @@ git clone --quiet https://github.com/ReturnInfinity/BareMetal-AppPort
 echo -e "- BareMetal-Firecracker"
 git clone --quiet https://github.com/ReturnInfinity/BareMetal-Firecracker
 
+# Makre sure libBareMetal is up to date in AppPort
+cp BareMetal-Firecracker/src/libBareMetal.* BareMetal-AppPort/port/
+
 mkdir BareMetal-AppPort/build/
 cp files/* BareMetal-AppPort/build
 cd BareMetal-AppPort
