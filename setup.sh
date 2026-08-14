@@ -55,6 +55,6 @@ if [ ! -f "$DISK" ]; then
 fi
 
 echo -e "\n${BOLD}Complete!${NORMAL}\n"
-echo -e "- Run ${BOLD}./1-build.sh YOURPROGRAM.c${NORMAL} to build your program"
+echo -e "- Run ${BOLD}./1-build.sh YOURPROGRAM.c/.py${NORMAL} to build your program into a unikernel"
 echo -e "- Run ${BOLD}./2-run.sh${NORMAL} to run your program in a BareMetal microVM."
 echo -e "- Run ${BOLD}./3-upload.sh${NORMAL} to upload your program to BareMetal Cloud"
