@@ -19,6 +19,7 @@
 #	SOCKET		Unix socket path used by the Firecracker API
 #	KERNEL		Path to the BareMetal ELF kernel image
 #	DISK		Path to the disk image
+#	MEMSIZE		VM memory size in MiB
 #	DISKSIZE	Size of the disk image, created on first start (e.g. 512M)
 #	SESSION		Screen session name
 #	VMLOG		Path to the VM serial console log file
@@ -29,6 +30,7 @@ set -eu
 SOCKET=/tmp/firecracker.socket
 KERNEL="$PWD/baremetal.elf"
 DISK="$PWD/disk.img"
+MEMSIZE=32
 DISKSIZE=512M
 SESSION=fc-vm
 FCLOG="/tmp/fc.log"
@@ -82,7 +84,7 @@ case "$cmd" in
 		# Set Firecracker CPU and MEM
 		curl -sf --unix-socket "$SOCKET" -X PUT 'http://localhost/machine-config' \
 			-H 'Content-Type: application/json' \
-			-d '{ "vcpu_count": 1, "mem_size_mib": 16 }' > /dev/null
+			-d "{ \"vcpu_count\": 1, \"mem_size_mib\": $MEMSIZE }" > /dev/null
 
 		# Set Firecracker network
 		if ip link show tap0 > /dev/null 2>&1; then
@@ -170,6 +172,7 @@ case "$cmd" in
 		echo "  SOCKET   $SOCKET"
 		echo "  KERNEL   $KERNEL"
 		echo "  DISK     $DISK"
+		echo "  MEMSIZE  $MEMSIZE"
 		echo "  DISKSIZE $DISKSIZE"
 		echo "  SESSION  $SESSION"
 		echo "  VMLOG    $VMLOG"
