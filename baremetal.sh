@@ -82,7 +82,7 @@ case "$cmd" in
 		# Set Firecracker CPU and MEM
 		curl -sf --unix-socket "$SOCKET" -X PUT 'http://localhost/machine-config' \
 			-H 'Content-Type: application/json' \
-			-d '{ "vcpu_count": 1, "mem_size_mib": 4 }' > /dev/null
+			-d '{ "vcpu_count": 1, "mem_size_mib": 16 }' > /dev/null
 
 		# Set Firecracker network
 		if ip link show tap0 > /dev/null 2>&1; then
