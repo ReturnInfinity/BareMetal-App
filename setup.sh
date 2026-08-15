@@ -54,6 +54,14 @@ if [ ! -f "$DISK" ]; then
 	mkfs.ext2 -q -F -b 4096 "$DISK" "$DISKSIZE"
 fi
 
+# Installs the CA bundle apps' HTTPS traffic verifies against
+# (port/tls_shim.c, curltest.c) onto the fresh image -- see
+# BareMetal-AppPort/port/mbedtls_port/install-cacert.sh's own header
+# for why this (unlike Python's stdlib/main.py) is a one-time setup.sh
+# step rather than something 1-build.sh/3-upload.sh redo per deploy.
+echo -e "- Installing CA trust store"
+BareMetal-AppPort/port/mbedtls_port/install-cacert.sh "$DISK"
+
 echo -e "\n${BOLD}Complete!${NORMAL}\n"
 echo -e "- Run ${BOLD}./1-build.sh YOURPROGRAM.c/.py${NORMAL} to build your program into a unikernel"
 echo -e "- Run ${BOLD}./2-run.sh${NORMAL} to run your program in a BareMetal microVM."

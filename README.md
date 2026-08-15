@@ -54,7 +54,7 @@ cd BareMetal-App
 ./setup.sh
 ```
 
-This runs a "pre-flight" check to verify the prerequisites above are installed (including `mkfs.ext2`, from `e2fsprogs`), then clones `BareMetal-AppPort` and `BareMetal-Firecracker` alongside this repo, copies the bundled libraries in `files/` (lwIP, mbedTLS, musl) into the app-port build directory, and builds everything. It also creates a 512M `disk.img`, formatted as a plain EXT2 filesystem (`mkfs.ext2 -b 4096` - the 4096-byte block size matters, see `setup.sh`'s comment) for the VM to boot against; `BareMetal-AppPort/port/ext4_shim.c` mounts it through lwext4.
+This runs a "pre-flight" check to verify the prerequisites above are installed (including `mkfs.ext2`, from `e2fsprogs`), then clones `BareMetal-AppPort` and `BareMetal-Firecracker` alongside this repo, copies the bundled libraries in `files/` (lwIP, mbedTLS, musl) into the app-port build directory, and builds everything. It also creates a 512M `disk.img`, formatted as a plain EXT2 filesystem (`mkfs.ext2 -b 4096` - the 4096-byte block size matters, see `setup.sh`'s comment) for the VM to boot against; `BareMetal-AppPort/port/ext4_shim.c` mounts it through lwext4. A CA bundle (`files/cacert.pem`) is installed onto that image too, so `https://` requests (`tls_shim.c`, `curltest.c`) verify the server's certificate rather than trusting it blindly.
 
 Re-running `./setup.sh` starts from a clean slate — it calls `./clean.sh` first, which removes the cloned repos, `baremetal.elf`, and `disk.img`.
 
