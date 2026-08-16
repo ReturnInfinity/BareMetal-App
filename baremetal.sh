@@ -30,7 +30,7 @@ set -eu
 SOCKET=/tmp/firecracker.socket
 KERNEL="$PWD/baremetal.elf"
 DISK="$PWD/disk.img"
-MEMSIZE=32
+MEMSIZE=18
 DISKSIZE=512M
 SESSION=fc-vm
 FCLOG="/tmp/fc.log"

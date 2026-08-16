@@ -13,11 +13,12 @@ fi
 # A .py argument doesn't get compiled -- BareMetal-AppPort/setup.sh
 # already built python.app (the CPython interpreter itself, see
 # BareMetal-AppPort/PYTHON.md) once, ready to go. Instead, deploy the
-# script onto disk.img as /pylib/main.py (the fixed path python.c
-# runs, see PYMAIN_SCRIPT_PATH there) via install-main.sh's debugfs -w
-# approach -- no host root/loop-mount needed, and safe even while a VM
-# has disk.img open -- then build the unikernel around python.app
-# instead of a freshly-compiled app.
+# curated stdlib (install-stdlib.sh) and the script itself as
+# /pylib/main.py (the fixed path python.c runs, see
+# PYMAIN_SCRIPT_PATH there) onto disk.img via debugfs -w -- no host
+# root/loop-mount needed, and safe even while a VM has disk.img open
+# -- then build the unikernel around python.app instead of a
+# freshly-compiled app.
 case "$1" in
 *.py)
 	if [ "$#" -gt 1 ]; then
@@ -42,6 +43,7 @@ case "$1" in
 		exit 1
 	fi
 
+	BareMetal-AppPort/port/python_port/install-stdlib.sh "$PWD/disk.img"
 	BareMetal-AppPort/port/python_port/install-main.sh "$PWD/disk.img" "$PROG_PY"
 
 	cp "BareMetal-AppPort/$PROG_APP" BareMetal-Firecracker/sys
