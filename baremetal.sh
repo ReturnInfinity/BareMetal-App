@@ -30,7 +30,7 @@ set -eu
 SOCKET=/tmp/firecracker.socket
 KERNEL="$PWD/baremetal.elf"
 DISK="$PWD/disk.img"
-MEMSIZE=18
+MEMSIZE=32 # As of last webserver.py test Python needed at least 28MiB
 DISKSIZE=512M
 SESSION=fc-vm
 FCLOG="/tmp/fc.log"
