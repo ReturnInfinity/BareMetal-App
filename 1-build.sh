@@ -43,8 +43,19 @@ case "$1" in
 		exit 1
 	fi
 
-	BareMetal-AppPort/port/python_port/install-stdlib.sh "$PWD/disk.img"
-	BareMetal-AppPort/port/python_port/install-main.sh "$PWD/disk.img" "$PROG_PY"
+	DEPLOY_LOG="/tmp/install-python-deploy.log"
+	: > "$DEPLOY_LOG"
+	echo "Deploying Python stdlib and $PROG_PY to disk.img (log: $DEPLOY_LOG) ..."
+	if ! BareMetal-AppPort/port/python_port/install-stdlib.sh "$PWD/disk.img" >> "$DEPLOY_LOG" 2>&1; then
+		echo "error: install-stdlib.sh failed -- see $DEPLOY_LOG" >&2
+		cat "$DEPLOY_LOG" >&2
+		exit 1
+	fi
+	if ! BareMetal-AppPort/port/python_port/install-main.sh "$PWD/disk.img" "$PROG_PY" >> "$DEPLOY_LOG" 2>&1; then
+		echo "error: install-main.sh failed -- see $DEPLOY_LOG" >&2
+		cat "$DEPLOY_LOG" >&2
+		exit 1
+	fi
 
 	cp "BareMetal-AppPort/$PROG_APP" BareMetal-Firecracker/sys
 	cd BareMetal-Firecracker
