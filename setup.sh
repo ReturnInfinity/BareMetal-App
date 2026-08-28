@@ -3,6 +3,7 @@ set -e
 
 BOLD="\033[1m"
 NORMAL="\033[0m"
+BRANCH=""
 
 echo -e "${BOLD}BareMetal-App Setup${NORMAL}\n"
 
@@ -20,10 +21,15 @@ done
 
 echo -e "${BOLD}Pulling repositories${NORMAL}"
 
+CLONE_ARGS=()
+if [ -n "$BRANCH" ]; then
+	CLONE_ARGS=(--branch "$BRANCH")
+fi
+
 echo -e "- BareMetal-AppPort"
-git clone --quiet https://github.com/ReturnInfinity/BareMetal-AppPort
+git clone --quiet "${CLONE_ARGS[@]}" https://github.com/ReturnInfinity/BareMetal-AppPort
 echo -e "- BareMetal-Firecracker"
-git clone --quiet https://github.com/ReturnInfinity/BareMetal-Firecracker
+git clone --quiet "${CLONE_ARGS[@]}" https://github.com/ReturnInfinity/BareMetal-Firecracker
 
 # Makre sure libBareMetal is up to date in AppPort
 cp BareMetal-Firecracker/src/libBareMetal.* BareMetal-AppPort/port/
