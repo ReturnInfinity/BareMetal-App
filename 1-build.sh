@@ -79,6 +79,13 @@ for SRC in "${PROG_SRCS[@]}"; do
 		echo "Error: $SRC not found"
 		exit 1
 	fi
+	case "$SRC" in
+	*.c) ;;
+	*)
+		echo "Error: $SRC is not a .c file"
+		exit 1
+		;;
+	esac
 	SRC_DIR=$(dirname "$SRC")
 	mkdir -p "BareMetal-AppPort/$SRC_DIR"
 	cp "$SRC" "BareMetal-AppPort/$SRC_DIR/"
