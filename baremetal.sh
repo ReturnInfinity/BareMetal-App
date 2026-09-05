@@ -30,7 +30,7 @@ set -eu
 SOCKET=/tmp/firecracker.socket
 KERNEL="$PWD/baremetal.elf"
 DISK="$PWD/disk.img"
-MEMSIZE=32 # As of last webserver.py test Python needed at least 28MiB
+MEMSIZE=4 # As of last webserver.py test Python needed at least 28MiB
 DISKSIZE=512M
 SESSION=fc-vm
 FCLOG="/tmp/fc.log"
@@ -77,9 +77,11 @@ case "$cmd" in
 		while [ ! -S "$SOCKET" ]; do sleep 0.05; done
 
 		# Set Firecracker kernel and boot args
+		boot_args=""
+		[ "$#" -gt 0 ] && boot_args="args=\`$*\`"
 		curl -sf --unix-socket "$SOCKET" -X PUT 'http://localhost/boot-source' \
 			-H 'Content-Type: application/json' \
-			-d "{ \"kernel_image_path\": \"$KERNEL\", \"boot_args\": \"\" }" > /dev/null
+			-d "{ \"kernel_image_path\": \"$KERNEL\", \"boot_args\": \"$boot_args\" }" > /dev/null
 
 		# Set Firecracker CPU and MEM
 		curl -sf --unix-socket "$SOCKET" -X PUT 'http://localhost/machine-config' \

@@ -16,7 +16,7 @@ if ! ip link show tap0 > /dev/null 2>&1; then
 fi
 
 # Start the VM via Firecracker
-./baremetal.sh start
+./baremetal.sh start "$@"
 
 # Check for 'screen`. If found attach to it's session - Otherwise sleep for 15 seconds
 if ! command -v screen > /dev/null 2>&1; then
