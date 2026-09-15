@@ -69,6 +69,6 @@ echo -e "- Installing CA trust store"
 BareMetal-AppPort/port/mbedtls_port/install-cacert.sh "$DISK"
 
 echo -e "\n${BOLD}Complete!${NORMAL}\n"
-echo -e "- Run ${BOLD}./1-build.sh YOURPROGRAM.c/.py${NORMAL} to build your program into a unikernel"
+echo -e "- Run ${BOLD}./1-build.sh YOURPROGRAM.c/.py${NORMAL} or ${BOLD}./1-build.sh yourcrate/src/main.rs${NORMAL} to build your program into a unikernel"
 echo -e "- Run ${BOLD}./2-run.sh${NORMAL} to run your program in a BareMetal microVM."
 echo -e "- Run ${BOLD}./3-upload.sh${NORMAL} to upload your program to BareMetal Cloud"

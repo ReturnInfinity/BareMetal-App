@@ -7,6 +7,7 @@ NORMAL="\033[0m"
 if [ -z "$1" ]; then
 	echo "Usage: $0 <program.c> [otherfile.c ...]"
 	echo "       $0 <program.py>"
+	echo "       $0 <yourcrate/src/main.rs>"
 	exit 1
 fi
 
@@ -58,6 +59,37 @@ case "$1" in
 	fi
 
 	cp "BareMetal-AppPort/$PROG_APP" BareMetal-Firecracker/sys
+	cd BareMetal-Firecracker
+	./build.sh "$PROG_APP"
+	cp sys/baremetal.elf ../
+	cd ..
+
+	exit 0
+	;;
+*.rs)
+	if [ "$#" -gt 1 ]; then
+		echo "Error: only one .rs file is supported -- it must be <yourcrate>/src/main.rs, and BareMetal-AppPort/build-rust-app.sh builds the whole cargo crate it belongs to (see RUST.md)"
+		exit 1
+	fi
+	PROG_RS="$1"
+	if [ ! -f "$PROG_RS" ]; then
+		echo "Error: $PROG_RS not found"
+		exit 1
+	fi
+
+	CRATE_DIR="$(cd "$(dirname "$PROG_RS")/.." && pwd)"
+	if [ ! -f "$CRATE_DIR/Cargo.toml" ]; then
+		echo "Error: $CRATE_DIR/Cargo.toml not found -- $PROG_RS must be <yourcrate>/src/main.rs"
+		exit 1
+	fi
+	PROG_APP="$(basename "$CRATE_DIR").app"
+	echo "$PROG_APP" > .prog_app
+
+	cd BareMetal-AppPort
+	./build-rust-app.sh "$OLDPWD/$PROG_RS"
+	cp "$PROG_APP" ../BareMetal-Firecracker/sys
+	cd ..
+
 	cd BareMetal-Firecracker
 	./build.sh "$PROG_APP"
 	cp sys/baremetal.elf ../
