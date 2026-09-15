@@ -3,7 +3,7 @@ set -e
 
 BOLD="\033[1m"
 NORMAL="\033[0m"
-BRANCH="ring3"
+BRANCH=""
 
 echo -e "${BOLD}BareMetal-App Setup${NORMAL}\n"
 
