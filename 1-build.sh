@@ -6,6 +6,7 @@ NORMAL="\033[0m"
 
 if [ -z "$1" ]; then
 	echo "Usage: $0 <program.c> [otherfile.c ...]"
+	echo "       $0 <program.cpp> [otherfile.cpp ...]"
 	echo "       $0 <program.py>"
 	echo "       $0 <yourcrate/src/main.rs>"
 	exit 1
@@ -87,6 +88,50 @@ case "$1" in
 
 	cd BareMetal-AppPort
 	./build-rust-app.sh "$OLDPWD/$PROG_RS"
+	cp "$PROG_APP" ../BareMetal-Firecracker/sys
+	cd ..
+
+	cd BareMetal-Firecracker
+	./build.sh "$PROG_APP"
+	cp sys/baremetal.elf ../
+	cd ..
+
+	exit 0
+	;;
+*.cpp)
+	# Same shape as the plain .c path below (multi-file support,
+	# mirrored into BareMetal-AppPort so quote-form #includes resolve
+	# the same way there), just dispatching to build-cpp-app.sh instead
+	# of build-app.sh -- see BareMetal-AppPort/CPP.md for how the C++
+	# port itself works.
+	PROG_SRCS=("$@")
+	PROG_APP="$(basename "${PROG_SRCS[0]}" .cpp).app"
+	echo "$PROG_APP" > .prog_app
+
+	for SRC in "${PROG_SRCS[@]}"; do
+		if [ ! -f "$SRC" ]; then
+			echo "Error: $SRC not found"
+			exit 1
+		fi
+		case "$SRC" in
+		*.cpp) ;;
+		*)
+			echo "Error: $SRC is not a .cpp file"
+			exit 1
+			;;
+		esac
+		SRC_DIR=$(dirname "$SRC")
+		mkdir -p "BareMetal-AppPort/$SRC_DIR"
+		cp "$SRC" "BareMetal-AppPort/$SRC_DIR/"
+		for HDR in "$SRC_DIR"/*.h "$SRC_DIR"/*.hpp; do
+			if [ -f "$HDR" ]; then
+				cp "$HDR" "BareMetal-AppPort/$SRC_DIR/"
+			fi
+		done
+	done
+
+	cd BareMetal-AppPort
+	./build-cpp-app.sh "${PROG_SRCS[@]}"
 	cp "$PROG_APP" ../BareMetal-Firecracker/sys
 	cd ..
 
