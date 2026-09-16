@@ -69,6 +69,22 @@ fc_put() {
 
 case "$cmd" in
 	start)
+		# MEMSIZE must fit the kernel ELF plus ~2MiB of loader/boot
+		# overhead, or firecracker's InstanceStart fails with "Unable
+		# to read kernel image" once the ELF no longer fits in guest
+		# memory. Check this up front instead of letting firecracker
+		# fail after it's already running.
+		if [ ! -f "$KERNEL" ]; then
+			echo "Error: kernel image not found at $KERNEL" >&2
+			exit 1
+		fi
+		kernel_size=$(wc -c < "$KERNEL")
+		min_mib=$(( (kernel_size + 1048575) / 1048576 + 2 ))
+		if [ "$MEMSIZE" -lt "$min_mib" ]; then
+			echo "Error: MEMSIZE=${MEMSIZE}MiB is too small for $KERNEL ($kernel_size bytes); needs at least ${min_mib}MiB" >&2
+			exit 1
+		fi
+
 		rm -f "$SOCKET"
 		rm -f "$FCLOG"
 		rm -f "$VMLOG"
