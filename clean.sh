@@ -3,6 +3,7 @@ set -e
 
 rm -rf BareMetal-AppPort
 rm -rf BareMetal-Firecracker
+rm -rf examples
 rm -f baremetal.elf
 rm -f disk.img
 rm -f .prog_app
