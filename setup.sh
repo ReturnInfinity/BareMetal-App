@@ -41,7 +41,7 @@ cd BareMetal-AppPort
 cd ..
 
 DISK="$PWD/disk.img"
-DISKSIZE=512M
+DISKSIZE=128M
 
 # Create the disk image if it doesn't already exist, formatted as a
 # plain EXT2 filesystem: BareMetal-AppPort/port/ext4_shim.c mounts it
@@ -68,7 +68,10 @@ fi
 echo -e "- Installing CA trust store"
 BareMetal-AppPort/port/mbedtls_port/install-cacert.sh "$DISK"
 
+echo -e "- Copying examples from BareMetal-AppPort"
+cp -r BareMetal-AppPort/examples .
+
 echo -e "\n${BOLD}Complete!${NORMAL}\n"
-echo -e "- Run ${BOLD}./1-build.sh YOURPROGRAM.c/.py${NORMAL} or ${BOLD}./1-build.sh yourcrate/src/main.rs${NORMAL} to build your program into a unikernel"
+echo -e "- Run ${BOLD}./1-build.sh YOURPROGRAM.c/.py${NORMAL} or ${BOLD}./1-build.sh yourcrate/src/main.rs${NORMAL} to build your program into a unikernel."
 echo -e "- Run ${BOLD}./2-run.sh${NORMAL} to run your program in a BareMetal microVM."
-echo -e "- Run ${BOLD}./3-upload.sh${NORMAL} to upload your program to BareMetal Cloud"
+echo -e "- Run ${BOLD}./3-upload.sh${NORMAL} to upload your program to BareMetal Cloud."
