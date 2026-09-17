@@ -9,6 +9,7 @@ if [ -z "$1" ]; then
 	echo "       $0 <program.cpp> [otherfile.cpp ...]"
 	echo "       $0 <program.py>"
 	echo "       $0 <yourcrate/src/main.rs>"
+	echo "       $0 <program.zig>"
 	exit 1
 fi
 
@@ -132,6 +133,42 @@ case "$1" in
 
 	cd BareMetal-AppPort
 	./build-cpp-app.sh "${PROG_SRCS[@]}"
+	cp "$PROG_APP" ../BareMetal-Firecracker/sys
+	cd ..
+
+	cd BareMetal-Firecracker
+	./build.sh "$PROG_APP"
+	cp sys/baremetal.elf ../
+	cd ..
+
+	exit 0
+	;;
+*.zig)
+	# Same shape as the .c path below, but a single file only --
+	# BareMetal-AppPort/build-zig-app.sh (unlike build-app.sh/
+	# build-cpp-app.sh) only takes one source at a time. See
+	# BareMetal-AppPort/ZIG.md for how the Zig port itself works and
+	# BareMetal-AppPort/examples/zig/hello/hello.zig for the required
+	# `export fn main(...) callconv(.c) c_int` entry-point shape.
+	if [ "$#" -gt 1 ]; then
+		echo "Error: only one .zig file is supported (see BareMetal-AppPort/ZIG.md)"
+		exit 1
+	fi
+	PROG_ZIG="$1"
+	if [ ! -f "$PROG_ZIG" ]; then
+		echo "Error: $PROG_ZIG not found"
+		exit 1
+	fi
+
+	PROG_APP="$(basename "$PROG_ZIG" .zig).app"
+	echo "$PROG_APP" > .prog_app
+
+	SRC_DIR=$(dirname "$PROG_ZIG")
+	mkdir -p "BareMetal-AppPort/$SRC_DIR"
+	cp "$PROG_ZIG" "BareMetal-AppPort/$SRC_DIR/"
+
+	cd BareMetal-AppPort
+	./build-zig-app.sh "$PROG_ZIG"
 	cp "$PROG_APP" ../BareMetal-Firecracker/sys
 	cd ..
 
