@@ -8,6 +8,7 @@ if [ -z "$1" ]; then
 	echo "Usage: $0 <program.c> [otherfile.c ...]"
 	echo "       $0 <program.cpp> [otherfile.cpp ...]"
 	echo "       $0 <program.py>"
+	echo "       $0 <program.lua>"
 	echo "       $0 <yourcrate/src/main.rs>"
 	exit 1
 fi
@@ -54,6 +55,51 @@ case "$1" in
 		exit 1
 	fi
 	if ! BareMetal-AppPort/port/python_port/install-main.sh "$PWD/disk.img" "$PROG_PY" >> "$DEPLOY_LOG" 2>&1; then
+		echo "error: install-main.sh failed -- see $DEPLOY_LOG" >&2
+		cat "$DEPLOY_LOG" >&2
+		exit 1
+	fi
+
+	cp "BareMetal-AppPort/$PROG_APP" BareMetal-Firecracker/sys
+	cd BareMetal-Firecracker
+	./build.sh "$PROG_APP"
+	cp sys/baremetal.elf ../
+	cd ..
+
+	exit 0
+	;;
+*.lua)
+	# Same shape as the .py case above, just for lua.app (see
+	# BareMetal-AppPort/LUA.md) instead of python.app -- no separate
+	# stdlib deploy step needed, Lua's standard library is compiled
+	# straight into the interpreter itself (setup.sh's LUA_SRCS), so
+	# only the script itself needs to land on disk.img.
+	if [ "$#" -gt 1 ]; then
+		echo "Error: only one .lua file is supported (it's deployed as /lualib/main.lua, lua.c's fixed entry point -- see BareMetal-AppPort/LUA.md)"
+		exit 1
+	fi
+	PROG_LUA="$1"
+	if [ ! -f "$PROG_LUA" ]; then
+		echo "Error: $PROG_LUA not found"
+		exit 1
+	fi
+
+	PROG_APP="lua.app"
+	echo "$PROG_APP" > .prog_app
+
+	if [ ! -f "BareMetal-AppPort/$PROG_APP" ]; then
+		echo "Error: BareMetal-AppPort/$PROG_APP is missing -- run BareMetal-AppPort/setup.sh first." >&2
+		exit 1
+	fi
+	if [ ! -f "disk.img" ]; then
+		echo "Error: disk.img is missing -- run ./setup.sh first." >&2
+		exit 1
+	fi
+
+	DEPLOY_LOG="/tmp/install-lua-deploy.log"
+	: > "$DEPLOY_LOG"
+	echo "Deploying $PROG_LUA to disk.img (log: $DEPLOY_LOG) ..."
+	if ! BareMetal-AppPort/port/lua_port/install-main.sh "$PWD/disk.img" "$PROG_LUA" >> "$DEPLOY_LOG" 2>&1; then
 		echo "error: install-main.sh failed -- see $DEPLOY_LOG" >&2
 		cat "$DEPLOY_LOG" >&2
 		exit 1
