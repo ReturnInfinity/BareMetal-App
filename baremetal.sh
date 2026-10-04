@@ -27,6 +27,7 @@
 #	VMLOGPOS	Path to the output read-position tracking file
 #	FCLOG		Path to the firecracker log file
 #	MEMHOTPLUG_EN	1 to attach a virtio-mem device so the guest can grow its RAM on demand
+#			(skipped automatically on CPUs that can't address it -- see hotplug_fits_host)
 #	MEMHOTPLUG_MAX	Hot-pluggable memory ceiling in MiB; also handed to the guest as its plug budget at start
 #	MEMHOTPLUG_BLOCK Hot-plug block size in MiB (power of 2, minimum 2)
 #	MEMHOTPLUG_SLOT	KVM memory slot size in MiB (power of 2, >= block size)
@@ -106,6 +107,25 @@ fc_mem_request() {
 		rm -f "$tmp"
 		sleep 0.05
 	done
+}
+
+# Firecracker always places the hot-plug region right after its 64-bit
+# MMIO gap, at guest physical 512 GiB (layout.rs's
+# FIRST_ADDR_PAST_64BITS_MMIO, unchanged through v1.17.0). KVM refuses a
+# memory slot past the host CPU's physical address width, so on a CPU
+# with fewer than 40 physical address bits (e.g. many laptop parts, which
+# report 39) every plug fails: KVM_SET_USER_MEMORY_REGION returns EINVAL
+# and Firecracker only logs "There was an error updating the KVM slot".
+# The guest then never grows past MEMSIZE no matter what it asks for.
+FC_HOTPLUG_BASE_MIB=524288 # 512 GiB
+
+# Succeeds if this host's CPU can address the whole hot-plug region
+# (512 GiB + MEMHOTPLUG_MAX). If the width can't be read, assume it can.
+hotplug_fits_host() {
+	phys_bits=$(sed -n 's/^address sizes[[:space:]]*:[[:space:]]*\([0-9][0-9]*\) bits physical.*/\1/p' /proc/cpuinfo 2>/dev/null | head -n 1)
+	[ -n "$phys_bits" ] || return 0
+	[ "$phys_bits" -gt 20 ] || return 0
+	[ $((FC_HOTPLUG_BASE_MIB + MEMHOTPLUG_MAX)) -le $((1 << (phys_bits - 20))) ]
 }
 
 case "$cmd" in
@@ -189,8 +209,15 @@ case "$cmd" in
 		# Set Firecracker storage
 		fc_put '/drives/rootfs' "{ \"drive_id\": \"rootfs\", \"path_on_host\": \"$DISK\", \"is_root_device\": true, \"is_read_only\": false }"
 
-		# Set Firecracker hotplug memory
-		if [ "$MEMHOTPLUG_EN" -eq 1 ]; then
+		# Set Firecracker hotplug memory (see hotplug_fits_host)
+		hotplug=$MEMHOTPLUG_EN
+		if [ "$hotplug" -eq 1 ] && ! hotplug_fits_host; then
+			hotplug=0
+			echo "Warning: this CPU has ${phys_bits}-bit physical addresses, too few for Firecracker's hot-plug memory region (at 512 GiB)." >&2
+			echo "         Starting without memory hot-plug: the guest is limited to MEMSIZE=${MEMSIZE}MiB of boot RAM." >&2
+			echo "         Raise MEMSIZE in baremetal.sh if the app needs more." >&2
+		fi
+		if [ "$hotplug" -eq 1 ]; then
 		fc_put '/hotplug/memory' "{ \"total_size_mib\": $MEMHOTPLUG_MAX, \"block_size_mib\": $MEMHOTPLUG_BLOCK, \"slot_size_mib\": $MEMHOTPLUG_SLOT }"
 		fi
 
@@ -202,7 +229,7 @@ case "$cmd" in
 		# Hand the guest its hot-plug budget (see fc_mem_request). The
 		# kernel's virtio-mem driver plugs blocks from it lazily as the
 		# app's allocations outgrow the boot RAM
-		if [ "$MEMHOTPLUG_EN" -eq 1 ]; then
+		if [ "$hotplug" -eq 1 ]; then
 			fc_mem_request "$MEMHOTPLUG_MAX" || true
 		fi
 
@@ -216,7 +243,7 @@ case "$cmd" in
 		if [ "$#" -gt 0 ]; then
 			fc_mem_request "$1"
 		fi
-		curl -sf --unix-socket "$SOCKET" 'http://localhost/hotplug/memory' || echo "Error: no hot-plug memory device (VM not running, or MEMHOTPLUG_EN=0)" >&2
+		curl -sf --unix-socket "$SOCKET" 'http://localhost/hotplug/memory' || echo "Error: no hot-plug memory device (VM not running, MEMHOTPLUG_EN=0, or skipped at start because this CPU can't address it)" >&2
 		echo
 
 		;;
