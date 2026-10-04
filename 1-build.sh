@@ -8,6 +8,7 @@ if [ -z "$1" ]; then
 	echo "Usage: $0 <program.c> [otherfile.c ...]"
 	echo "       $0 <program.cpp> [otherfile.cpp ...]"
 	echo "       $0 <program.py>"
+	echo "       $0 <program.lua>"
 	echo "       $0 <yourcrate/src/main.rs>"
 	echo "       $0 <program.zig>"
 	exit 1
@@ -55,6 +56,51 @@ case "$1" in
 		exit 1
 	fi
 	if ! BareMetal-AppPort/port/python_port/install-main.sh "$PWD/disk.img" "$PROG_PY" >> "$DEPLOY_LOG" 2>&1; then
+		echo "error: install-main.sh failed -- see $DEPLOY_LOG" >&2
+		cat "$DEPLOY_LOG" >&2
+		exit 1
+	fi
+
+	cp "BareMetal-AppPort/$PROG_APP" BareMetal-Firecracker/sys
+	cd BareMetal-Firecracker
+	./build.sh "$PROG_APP"
+	cp sys/baremetal.elf ../
+	cd ..
+
+	exit 0
+	;;
+*.lua)
+	# Same shape as the .py path above, minus the stdlib deploy: Lua's
+	# whole standard library is compiled into lua.app (built once by
+	# BareMetal-AppPort/setup.sh, see BareMetal-AppPort/LUA.md), so
+	# only the script itself goes onto disk.img, as /lua/main.lua (the
+	# fixed path lua.c runs, see LUAMAIN_SCRIPT_PATH there). Other
+	# .lua modules it require()s can be copied into /lua/ the same way.
+	if [ "$#" -gt 1 ]; then
+		echo "Error: only one .lua file is supported (it's deployed as /lua/main.lua, lua.c's fixed entry point -- see BareMetal-AppPort/LUA.md)"
+		exit 1
+	fi
+	PROG_LUA="$1"
+	if [ ! -f "$PROG_LUA" ]; then
+		echo "Error: $PROG_LUA not found"
+		exit 1
+	fi
+
+	PROG_APP="lua.app"
+	echo "$PROG_APP" > .prog_app
+
+	if [ ! -f "BareMetal-AppPort/$PROG_APP" ]; then
+		echo "Error: BareMetal-AppPort/$PROG_APP is missing -- run BareMetal-AppPort/setup.sh first." >&2
+		exit 1
+	fi
+	if [ ! -f "disk.img" ]; then
+		echo "Error: disk.img is missing -- run ./setup.sh first." >&2
+		exit 1
+	fi
+
+	DEPLOY_LOG="/tmp/install-lua-deploy.log"
+	echo "Deploying $PROG_LUA to disk.img (log: $DEPLOY_LOG) ..."
+	if ! BareMetal-AppPort/port/lua_port/install-main.sh "$PWD/disk.img" "$PROG_LUA" > "$DEPLOY_LOG" 2>&1; then
 		echo "error: install-main.sh failed -- see $DEPLOY_LOG" >&2
 		cat "$DEPLOY_LOG" >&2
 		exit 1
