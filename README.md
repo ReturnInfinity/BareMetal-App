@@ -91,6 +91,14 @@ This will:
 
 Boot `baremetal.elf` locally under Firecracker and print its console output.
 
+### Run it under QEMU
+
+```
+./2-run-qemu.sh
+```
+
+Boot the same `baremetal.elf` in a QEMU `microvm` instead, with `disk.img` and a network device attached and the serial console in your terminal. QEMU exits when the app finishes; press `Ctrl-A` then `X` to quit early. Needs `qemu-system-x86_64` and access to `/dev/kvm`. The network uses `tap0` if it exists, otherwise QEMU's user-mode networking (outbound only, no host setup needed). There is no memory hot-plug under QEMU, so the VM gets `MEMSIZE` MiB up front (default 256; e.g. `MEMSIZE=1024 ./2-run-qemu.sh`). Arguments are passed to the app as with `./2-run.sh`.
+
 ## Upload it
 
 Uploading requires a `BM_API_KEY`. Generate one from the [dashboard](https://baremetal.returninfinity.com) (or `POST /api/api-keys` while signed in), then:
