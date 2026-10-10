@@ -7,6 +7,7 @@ rm -rf examples
 rm -f baremetal.elf
 rm -f disk.img
 rm -f .prog_app
+rm -f bmcloud
 
 # Unmount before removing the (possibly still-mounted) directory --
 # rm -rf on an active mount point would delete files off disk.img

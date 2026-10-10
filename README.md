@@ -6,16 +6,15 @@ BareMetal is an exokernel written in x86-64 Assembly that expects a payload prog
 
 ## Quickstart
 
-Log into [BareMetal Cloud](https://baremetal.returninfinity.com), open API KEYS, and create a new API key.
+Log into [BareMetal Cloud](https://baremetal.returninfinity.com), open API keys, and create a new API key.
 
-On your linux system enter the command `export BM_API_KEY=YOURKEY`. Replace YOURKEY with the new key.
-
-Enter the following commands:
+Enter the following commands, pasting the new key when `./bmcloud login` asks for it:
 
 ```
 git clone https://github.com/ReturnInfinity/BareMetal-App
 cd BareMetal-App
 ./setup.sh
+./bmcloud login
 cp BareMetal-AppPort/hello.c .
 ./1-build.sh hello.c
 ./2-run.sh
@@ -27,7 +26,7 @@ When prompted to upload to cloud hit `Y`. Your program should be running in Bare
 `./1-build.sh` writes the name of the `.app` it built to `.prog_app` in the repo root, which `./3-upload.sh` reads back so it knows which file to upload — this is what lets the two scripts be run separately, one after the other.
 
 Confirm it:
-`./bm-api.sh instances list`
+`./bmcloud vm list`
 
 ## Requirements
 
@@ -54,9 +53,9 @@ cd BareMetal-App
 ./setup.sh
 ```
 
-This runs a "pre-flight" check to verify the prerequisites above are installed (including `mkfs.ext2`, from `e2fsprogs`), then clones `BareMetal-AppPort` and `BareMetal-Firecracker` alongside this repo, copies the bundled libraries in `files/` (lwIP, mbedTLS, musl) into the app-port build directory, and builds everything. It also creates a 512M `disk.img`, formatted as a plain EXT2 filesystem (`mkfs.ext2 -b 4096` - the 4096-byte block size matters, see `setup.sh`'s comment) for the VM to boot against; `BareMetal-AppPort/port/ext4_shim.c` mounts it through lwext4. A CA bundle (`files/cacert.pem`) is installed onto that image too, so `https://` requests (`tls_shim.c`, `curltest.c`) verify the server's certificate rather than trusting it blindly; the same bundle is also compiled directly into every app binary as a fallback, so verification still works even with no disk attached at all.
+This runs a "pre-flight" check to verify the prerequisites above are installed (including `mkfs.ext2`, from `e2fsprogs`), then clones `BareMetal-AppPort` and `BareMetal-Firecracker` alongside this repo, copies the bundled libraries in `files/` (lwIP, mbedTLS, musl) into the app-port build directory, builds everything, and downloads the [`bmcloud`](https://baremetal.returninfinity.com/cli/bmcloud) CLI into the repo root. It also creates a 512M `disk.img`, formatted as a plain EXT2 filesystem (`mkfs.ext2 -b 4096` - the 4096-byte block size matters, see `setup.sh`'s comment) for the VM to boot against; `BareMetal-AppPort/port/ext4_shim.c` mounts it through lwext4. A CA bundle (`files/cacert.pem`) is installed onto that image too, so `https://` requests (`tls_shim.c`, `curltest.c`) verify the server's certificate rather than trusting it blindly; the same bundle is also compiled directly into every app binary as a fallback, so verification still works even with no disk attached at all.
 
-Re-running `./setup.sh` starts from a clean slate — it calls `./clean.sh` first, which removes the cloned repos, `baremetal.elf`, and `disk.img`.
+Re-running `./setup.sh` starts from a clean slate — it calls `./clean.sh` first, which removes the cloned repos, `baremetal.elf`, `disk.img`, and `bmcloud`.
 
 ## Write a program
 
@@ -101,17 +100,19 @@ Boot the same `baremetal.elf` in a QEMU `microvm` instead, with `disk.img` and a
 
 ## Upload it
 
-Uploading requires a `BM_API_KEY`. Generate one from the [dashboard](https://baremetal.returninfinity.com) (or `POST /api/api-keys` while signed in), then:
+Uploading requires an API key. Create one on the API keys page of the [BareMetal Cloud portal](https://baremetal.returninfinity.com), then save it once with:
 
 ```
-export BM_API_KEY=YOURKEY
+./bmcloud login
 ```
 
-Upload `baremetal.elf` to the BareMetal Cloud and launch it as an instance.
+Upload `baremetal.elf` to BareMetal Cloud as a kernel image and launch it as a VM:
 
 ```
 ./3-upload.sh
 ```
+
+The image and the VM are both named after your program (e.g. `hello`). See [Deploying to BareMetal Cloud](#deploying-to-baremetal-cloud) for managing it afterwards.
 
 ### Local networking (optional)
 
@@ -121,7 +122,7 @@ Local VM testing needs a `tap0` device. Create one with:
 ./BareMetal-Firecracker/scripts/mkbr0.sh
 ```
 
-This sets up a `br0` bridge with `tap0` attached in promiscuous mode. On a wired connection the host NIC is enslaved to the bridge for full L2 visibility to the VM; on Wi-Fi (which can't be bridged in station mode) it falls back to NAT so the guest still has outbound connectivity. If `tap0` isn't present, `test.sh` simply skips the local run and moves on to the cloud upload prompt.
+This sets up a `br0` bridge with `tap0` attached in promiscuous mode. On a wired connection the host NIC is enslaved to the bridge for full L2 visibility to the VM; on Wi-Fi (which can't be bridged in station mode) it falls back to NAT so the guest still has outbound connectivity. If `tap0` isn't present, `./2-run.sh` warns and starts the VM without network access, and `./2-run-qemu.sh` falls back to QEMU's user-mode networking.
 
 ## Managing the local VM
 
@@ -137,40 +138,58 @@ This sets up a `br0` bridge with `tap0` attached in promiscuous mode. On a wired
 | `attach` | Attach to the interactive `screen` session for the console |
 | `help` | Show usage and current configuration |
 
-`test.sh` calls `start` and `output --full` for you; use these directly when iterating without rebuilding, or `attach` to interact with the running program.
+`./2-run.sh` calls `start`, `attach` (when `screen` is installed), and `output --full` for you; use these directly when iterating without rebuilding, or `attach` to interact with the running program.
 
-## Deploying to the BareMetal Cloud
+## Deploying to BareMetal Cloud
 
 ![BareMetal Cloud UI](images/Screenshot.png)
 
-Uploading from `test.sh` requires a `BM_API_KEY`. Generate one from the [dashboard](https://baremetal.returninfinity.com) (or `POST /api/api-keys` while signed in), then:
+`./3-upload.sh` handles a single upload-and-launch flow. For everything else, use `./bmcloud`, the BareMetal Cloud command-line client (`setup.sh` downloads it from <https://baremetal.returninfinity.com/cli/bmcloud>; `./3-upload.sh` fetches it if it's missing). It needs `bash` 4+, `curl`, and `jq`.
+
+Authenticate with an API key from the portal's API keys page, either saved once or set per shell:
 
 ```
-export BM_API_KEY=YOURKEY
+./bmcloud login               # prompts for the key and saves it to ~/.config/bmcloud/credentials
+export BMC_API_KEY=bmc_...    # or provide it per shell/session
 ```
 
-An API key only ever authorizes `/api/images`, `/api/instances`, `/api/tasks`, and `/api/limits` — never billing or account routes.
-
-`test.sh` handles a single upload-and-launch flow interactively. For everything else, `./bm-api.sh` is a standalone CLI over the same API:
+Then:
 
 ```
-BM_API_KEY=bmvps_... ./bm-api.sh <command> [args...]
+./bmcloud [--json] [--url URL] <command> [args...]
 ```
+
+VMs and images can be referred to by id or by a unique name.
 
 | Command | Description |
 |---|---|
-| `images list` | List available images |
-| `images upload <label> <file>` | Upload a built `.elf` as a new image |
-| `images rm <image-id>` | Delete an image |
-| `instances list` | List your instances |
-| `instances show <instance-id>` | Show status and network info for an instance |
-| `instances create <name> <vcpu> <ram-mib> <image-id>` | Create and start a new instance |
-| `instances start\|stop\|reboot\|suspend\|resume\|snapshot\|restore <instance-id>` | Lifecycle actions |
-| `instances rm <instance-id>` | Delete an instance |
-| `instances logs <instance-id>` | Fetch an instance's console log |
-| `tasks show <task-id>` | Check the status of an async provisioning task |
+| `login` / `logout` | Save / remove the API key |
+| `whoami` | Account, plan, balance, and limits |
+| `vm list` | List your VMs |
+| `vm show <vm>` | Status, hostname, memory, disk, forwards, and domains of a VM |
+| `vm create <name> --kernel <image> [--ram MiB] [--hotplug MiB] [--disk ext2\|raw\|none\|image] [--disk-size MiB] [--disk-image <image>] [--args "app args"] [--no-start] [--no-https]` | Create (and by default start) a VM |
+| `vm start\|stop\|suspend\|resume <vm>` | Lifecycle actions (applied asynchronously) |
+| `vm wait <vm> <status> [--timeout SECONDS]` | Wait until a VM reaches a status, e.g. `running` |
+| `vm delete <vm> [--yes]` | Delete a VM and its disk |
+| `vm args <vm> "<app args>"` | Change app arguments (VM must be stopped) |
+| `vm memory <vm> <ram-mib> [hotplug-mib]` | Change memory (VM must be stopped) |
+| `vm console <vm> [--bytes N] [--follow]` | Print the VM's console output |
+| `vm usage <vm>` | Hourly resource usage and cost |
+| `vm forwards <vm>` | List port forwards |
+| `vm forward-add <vm> <http\|tcp\|udp> <guest-port> [public-port]` | Forward a public port (or the HTTPS hostname) to the VM |
+| `vm forward-rm <vm> <forward-id>` | Remove a port forward |
+| `vm domains <vm>` | Custom domains and the DNS records they need |
+| `vm domain-add <vm> <hostname>` | Add a custom domain |
+| `vm domain-check <vm> <domain-id>` | Retry the DNS check and certificate now |
+| `vm domain-rm <vm> <domain-id>` | Remove a custom domain |
+| `image list` | List your images |
+| `image upload <file> [--name NAME] [--kind auto\|kernel\|disk]` | Upload a built `.elf` (kernel) or a disk image |
+| `image delete <image> [--yes]` | Delete an image |
+| `billing` | Balance, spend, and recent transactions |
+| `billing usage` | Hourly usage records |
+| `billing topup <amount>` | Fund the account (opens Stripe Checkout) |
 
-Pass `-v`/`--verbose` before a command to see the full JSON response instead of the trimmed default output. Commands that enqueue a provisioning task (create, start, stop, reboot, suspend, resume, snapshot, restore, rm, logs) poll until the task settles before printing anything.
+Pass `--json` before a command to print the raw JSON API response instead (for scripting). Run `./bmcloud help` for the full usage text.
 
 ## Cleaning up
 
@@ -178,4 +197,4 @@ Pass `-v`/`--verbose` before a command to see the full JSON response instead of 
 ./clean.sh
 ```
 
-Removes the cloned `BareMetal-AppPort` and `BareMetal-Firecracker` repos, `baremetal.elf`, `disk.img`, and `.prog_app`. `setup.sh` runs this automatically before rebuilding.
+Removes the cloned `BareMetal-AppPort` and `BareMetal-Firecracker` repos, `examples`, `baremetal.elf`, `disk.img`, `.prog_app`, and `bmcloud`. Your saved `bmcloud login` credentials are kept. `setup.sh` runs this automatically before rebuilding.

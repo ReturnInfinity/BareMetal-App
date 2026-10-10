@@ -68,10 +68,15 @@ fi
 echo -e "- Installing CA trust store"
 BareMetal-AppPort/port/mbedtls_port/install-cacert.sh "$DISK"
 
+echo -e "- Downloading the BareMetal Cloud CLI"
+curl -fsSL -o bmcloud https://baremetal.returninfinity.com/cli/bmcloud
+chmod +x bmcloud
+
 echo -e "- Copying examples from BareMetal-AppPort"
 cp -r BareMetal-AppPort/examples .
 
 echo -e "\n${BOLD}Complete!${NORMAL}\n"
 echo -e "- Run ${BOLD}./1-build.sh YOURPROGRAM.c/.py${NORMAL} or ${BOLD}./1-build.sh yourcrate/src/main.rs${NORMAL} to build your program into a unikernel."
 echo -e "- Run ${BOLD}./2-run.sh${NORMAL} to run your program in a BareMetal microVM."
+echo -e "- Run ${BOLD}./bmcloud login${NORMAL} once with an API key from the BareMetal Cloud portal."
 echo -e "- Run ${BOLD}./3-upload.sh${NORMAL} to upload your program to BareMetal Cloud."
