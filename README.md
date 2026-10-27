@@ -82,6 +82,14 @@ This will:
 1. Build your program into a BareMetal `.app` via `BareMetal-AppPort/build-app.sh`.
 2. Link it into a bootable kernel image via `BareMetal-Firecracker/build.sh`, producing `baremetal.elf` in the repo root.
 
+### Run a SQL script with SQLite
+
+```
+./1-build.sh script.sql [database.db|-]
+```
+
+As with `.py` and `.lua` files, nothing is compiled: `sqlite.app` (SQLite's own command-line shell, built by `setup.sh`) runs the script as `/sqlite/main.sql` on `disk.img`, against the database `/sqlite/main.db`, and prints each statement followed by its results. The database persists between runs. Give a local database file as the second argument to replace it with a copy, or `-` to start over with an empty one. Arguments to `./2-run.sh` become shell options, e.g. `./2-run.sh -box` or `./2-run.sh -header -csv`. See `examples/sqlite/hello`.
+
 ### Serve a website with lighttpd
 
 ```
