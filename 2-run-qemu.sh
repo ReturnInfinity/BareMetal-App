@@ -11,6 +11,10 @@
 #			under QEMU, so this is all the RAM the app gets. Only what the
 #			app touches costs host memory
 #	CPUCOUNT	vCPU count (default 1)
+#	HOSTFWD		Host-to-guest TCP port forwards for user-mode networking, as
+#			space-separated host:guest pairs (e.g. "18080:80" makes a
+#			server on guest port 80 reachable at 127.0.0.1:18080). Not
+#			needed with tap0, where the guest has its own address
 set -e
 
 BOLD="\033[1m"
@@ -21,6 +25,7 @@ DISK="$PWD/disk.img"
 MEMSIZE="${MEMSIZE:-256}"
 CPUCOUNT="${CPUCOUNT:-1}"
 MAC="02:FC:AB:CD:EF:02" # 2-run.sh's Firecracker VM uses ...:01
+HOSTFWD="${HOSTFWD:-}"
 
 # Check for QEMU
 if ! command -v qemu-system-x86_64 > /dev/null 2>&1; then
@@ -85,9 +90,27 @@ fi
 # networking, which gives the guest outbound access via DHCP without any host setup
 if ip link show tap0 > /dev/null 2>&1; then
 	QEMU_ARGS+=(-netdev tap,id=eth0,ifname=tap0,script=no,downscript=no)
+	if [ -n "$HOSTFWD" ]; then
+		echo -e "${BOLD}Note${NORMAL}: HOSTFWD is ignored with tap0 -- connect to the guest's own address instead." >&2
+	fi
 else
-	echo -e "${BOLD}Note${NORMAL}: tap device 'tap0' not found. Using QEMU user-mode networking (outbound only). Run 'BareMetal-Firecracker/scripts/mkbr0.sh' to use tap0." >&2
-	QEMU_ARGS+=(-netdev user,id=eth0)
+	NETDEV="user,id=eth0"
+	for fwd in $HOSTFWD; do
+		case "$fwd" in
+		[0-9]*:[0-9]*) ;;
+		*)
+			echo -e "${BOLD}Error${NORMAL}: HOSTFWD entry '$fwd' isn't host:guest (e.g. 18080:80)." >&2
+			exit 1
+			;;
+		esac
+		NETDEV="$NETDEV,hostfwd=tcp:127.0.0.1:${fwd%%:*}-:${fwd##*:}"
+	done
+	if [ -n "$HOSTFWD" ]; then
+		echo -e "${BOLD}Note${NORMAL}: tap device 'tap0' not found. Using QEMU user-mode networking, forwarding: $(for fwd in $HOSTFWD; do printf '127.0.0.1:%s -> guest :%s  ' "${fwd%%:*}" "${fwd##*:}"; done)" >&2
+	else
+		echo -e "${BOLD}Note${NORMAL}: tap device 'tap0' not found. Using QEMU user-mode networking (outbound only; set HOSTFWD, e.g. HOSTFWD=18080:80, to reach a guest server). Run 'BareMetal-Firecracker/scripts/mkbr0.sh' to use tap0." >&2
+	fi
+	QEMU_ARGS+=(-netdev "$NETDEV")
 fi
 QEMU_ARGS+=(-device virtio-net-device,netdev=eth0,mac="$MAC")
 

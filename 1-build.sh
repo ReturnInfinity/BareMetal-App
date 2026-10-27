@@ -11,6 +11,7 @@ if [ -z "$1" ]; then
 	echo "       $0 <program.lua>"
 	echo "       $0 <yourcrate/src/main.rs>"
 	echo "       $0 <program.zig>"
+	echo "       $0 lighttpd [lighttpd.conf] [docroot-dir]"
 	exit 1
 fi
 
@@ -102,6 +103,63 @@ case "$1" in
 	echo "Deploying $PROG_LUA to disk.img (log: $DEPLOY_LOG) ..."
 	if ! BareMetal-AppPort/port/lua_port/install-main.sh "$PWD/disk.img" "$PROG_LUA" > "$DEPLOY_LOG" 2>&1; then
 		echo "error: install-main.sh failed -- see $DEPLOY_LOG" >&2
+		cat "$DEPLOY_LOG" >&2
+		exit 1
+	fi
+
+	cp "BareMetal-AppPort/$PROG_APP" BareMetal-Firecracker/sys
+	cd BareMetal-Firecracker
+	./build.sh "$PROG_APP"
+	cp sys/baremetal.elf ../
+	cd ..
+
+	exit 0
+	;;
+lighttpd)
+	# Not a program to compile: lighttpd.app (the lighttpd web server,
+	# built once by BareMetal-AppPort/setup.sh, see
+	# BareMetal-AppPort/LIGHTTPD.md) runs whatever config and site are on
+	# disk.img. Deploy those (install.sh puts the config at
+	# /lighttpd/lighttpd.conf, the fixed path lighttpd.c passes to -f,
+	# and the docroot's contents under /lighttpd/www), then build the
+	# unikernel around lighttpd.app. With no arguments, install.sh's own
+	# defaults are used: port/lighttpd_port/lighttpd.conf and its www/.
+	if [ "$#" -gt 3 ]; then
+		echo "Error: usage is $0 lighttpd [lighttpd.conf] [docroot-dir]"
+		exit 1
+	fi
+	INSTALL_ARGS=("$PWD/disk.img")
+	if [ -n "${2:-}" ]; then
+		if [ ! -f "$2" ]; then
+			echo "Error: $2 not found"
+			exit 1
+		fi
+		INSTALL_ARGS+=("$(realpath "$2")")
+	fi
+	if [ -n "${3:-}" ]; then
+		if [ ! -d "$3" ]; then
+			echo "Error: $3 is not a directory"
+			exit 1
+		fi
+		INSTALL_ARGS+=("$(realpath "$3")")
+	fi
+
+	PROG_APP="lighttpd.app"
+	echo "$PROG_APP" > .prog_app
+
+	if [ ! -f "BareMetal-AppPort/$PROG_APP" ]; then
+		echo "Error: BareMetal-AppPort/$PROG_APP is missing -- run BareMetal-AppPort/setup.sh first." >&2
+		exit 1
+	fi
+	if [ ! -f "disk.img" ]; then
+		echo "Error: disk.img is missing -- run ./setup.sh first." >&2
+		exit 1
+	fi
+
+	DEPLOY_LOG="/tmp/install-lighttpd-deploy.log"
+	echo "Deploying the lighttpd config and docroot to disk.img (log: $DEPLOY_LOG) ..."
+	if ! BareMetal-AppPort/port/lighttpd_port/install.sh "${INSTALL_ARGS[@]}" > "$DEPLOY_LOG" 2>&1; then
+		echo "error: install.sh failed -- see $DEPLOY_LOG" >&2
 		cat "$DEPLOY_LOG" >&2
 		exit 1
 	fi

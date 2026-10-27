@@ -82,6 +82,19 @@ This will:
 1. Build your program into a BareMetal `.app` via `BareMetal-AppPort/build-app.sh`.
 2. Link it into a bootable kernel image via `BareMetal-Firecracker/build.sh`, producing `baremetal.elf` in the repo root.
 
+### Serve a website with lighttpd
+
+```
+./1-build.sh lighttpd [lighttpd.conf] [docroot-dir]
+```
+
+There's nothing to compile here: `lighttpd.app` (the lighttpd web server, see `BareMetal-AppPort/LIGHTTPD.md`) is already built by `setup.sh`. This copies a config to `/lighttpd/lighttpd.conf` on `disk.img` and the contents of a site directory to `/lighttpd/www`, replacing any previous site, then builds `baremetal.elf` around `lighttpd.app`. With no arguments it uses the sample config and site in `BareMetal-AppPort/port/lighttpd_port/`; start from that `lighttpd.conf` when writing your own. lighttpd listens on port 80 and keeps running until the VM is stopped. Under QEMU without `tap0`, forward a host port to it (see below):
+
+```
+HOSTFWD=18080:80 ./2-run-qemu.sh
+curl http://127.0.0.1:18080/
+```
+
 ## Run it
 
 ```
@@ -96,7 +109,7 @@ Boot `baremetal.elf` locally under Firecracker and print its console output.
 ./2-run-qemu.sh
 ```
 
-Boot the same `baremetal.elf` in a QEMU `microvm` instead, with `disk.img` and a network device attached and the serial console in your terminal. QEMU exits when the app finishes; press `Ctrl-A` then `X` to quit early. Needs `qemu-system-x86_64` and access to `/dev/kvm`. The network uses `tap0` if it exists, otherwise QEMU's user-mode networking (outbound only, no host setup needed). There is no memory hot-plug under QEMU, so the VM gets `MEMSIZE` MiB up front (default 256; e.g. `MEMSIZE=1024 ./2-run-qemu.sh`). Arguments are passed to the app as with `./2-run.sh`.
+Boot the same `baremetal.elf` in a QEMU `microvm` instead, with `disk.img` and a network device attached and the serial console in your terminal. QEMU exits when the app finishes; press `Ctrl-A` then `X` to quit early. Needs `qemu-system-x86_64` and access to `/dev/kvm`. The network uses `tap0` if it exists, otherwise QEMU's user-mode networking (outbound only, no host setup needed). There is no memory hot-plug under QEMU, so the VM gets `MEMSIZE` MiB up front (default 256; e.g. `MEMSIZE=1024 ./2-run-qemu.sh`). Arguments are passed to the app as with `./2-run.sh`. To reach a server in the guest over user-mode networking, set `HOSTFWD` to space-separated `host:guest` TCP port pairs; e.g. `HOSTFWD=18080:80` makes guest port 80 reachable at `127.0.0.1:18080` (with `tap0`, connect to the guest's own address instead).
 
 ## Upload it
 
