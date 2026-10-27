@@ -9,6 +9,7 @@ if [ -z "$1" ]; then
 	echo "       $0 <program.cpp> [otherfile.cpp ...]"
 	echo "       $0 <program.py>"
 	echo "       $0 <program.lua>"
+	echo "       $0 <script.sql> [database.db|-]"
 	echo "       $0 <yourcrate/src/main.rs>"
 	echo "       $0 <program.zig>"
 	echo "       $0 lighttpd [lighttpd.conf] [docroot-dir]"
@@ -102,6 +103,59 @@ case "$1" in
 	DEPLOY_LOG="/tmp/install-lua-deploy.log"
 	echo "Deploying $PROG_LUA to disk.img (log: $DEPLOY_LOG) ..."
 	if ! BareMetal-AppPort/port/lua_port/install-main.sh "$PWD/disk.img" "$PROG_LUA" > "$DEPLOY_LOG" 2>&1; then
+		echo "error: install-main.sh failed -- see $DEPLOY_LOG" >&2
+		cat "$DEPLOY_LOG" >&2
+		exit 1
+	fi
+
+	cp "BareMetal-AppPort/$PROG_APP" BareMetal-Firecracker/sys
+	cd BareMetal-Firecracker
+	./build.sh "$PROG_APP"
+	cp sys/baremetal.elf ../
+	cd ..
+
+	exit 0
+	;;
+*.sql)
+	# Same shape as the .lua path above: sqlite.app (SQLite's own shell,
+	# built once by BareMetal-AppPort/setup.sh) runs /sqlite/main.sql off
+	# disk.img against /sqlite/main.db, printing each statement and its
+	# results. The database persists between runs; a second argument
+	# replaces it with a copy of a local database file, or "-" deletes it
+	# so the next run starts empty. See port/sqlite_port/install-main.sh.
+	if [ "$#" -gt 2 ]; then
+		echo "Error: usage is $0 script.sql [database.db|-]"
+		exit 1
+	fi
+	PROG_SQL="$1"
+	if [ ! -f "$PROG_SQL" ]; then
+		echo "Error: $PROG_SQL not found"
+		exit 1
+	fi
+	INSTALL_ARGS=("$PWD/disk.img" "$PROG_SQL")
+	if [ -n "${2:-}" ]; then
+		if [ "$2" != "-" ] && [ ! -f "$2" ]; then
+			echo "Error: $2 not found"
+			exit 1
+		fi
+		INSTALL_ARGS+=("$2")
+	fi
+
+	PROG_APP="sqlite.app"
+	echo "$PROG_APP" > .prog_app
+
+	if [ ! -f "BareMetal-AppPort/$PROG_APP" ]; then
+		echo "Error: BareMetal-AppPort/$PROG_APP is missing -- run BareMetal-AppPort/setup.sh first." >&2
+		exit 1
+	fi
+	if [ ! -f "disk.img" ]; then
+		echo "Error: disk.img is missing -- run ./setup.sh first." >&2
+		exit 1
+	fi
+
+	DEPLOY_LOG="/tmp/install-sqlite-deploy.log"
+	echo "Deploying $PROG_SQL to disk.img (log: $DEPLOY_LOG) ..."
+	if ! BareMetal-AppPort/port/sqlite_port/install-main.sh "${INSTALL_ARGS[@]}" > "$DEPLOY_LOG" 2>&1; then
 		echo "error: install-main.sh failed -- see $DEPLOY_LOG" >&2
 		cat "$DEPLOY_LOG" >&2
 		exit 1
