@@ -4,23 +4,6 @@
 
 For how the port itself works, and the full list of built-in modules, see `BareMetal-AppPort/LIGHTTPD.md`.
 
-## Quickstart
-
-After `./setup.sh` (see [README.md](README.md)), build and run the sample site:
-
-```
-./1-build.sh lighttpd
-HOSTFWD=18080:80 ./2-run-qemu.sh
-```
-
-Then, from another terminal:
-
-```
-curl http://127.0.0.1:18080/
-```
-
-Press `Ctrl-A` then `X` to stop the VM.
-
 ## Your web page files
 
 Put your site in a directory on your machine, with `index.html` at the top. Subdirectories, images, CSS and JavaScript all work:
@@ -38,7 +21,7 @@ mysite/
 ## Building
 
 ```
-./1-build.sh lighttpd [lighttpd.conf] [docroot-dir]
+./1-build.sh lighttpd [lighttpd.conf] [mysite]
 ```
 
 This does two things:
@@ -69,6 +52,19 @@ Start from `BareMetal-AppPort/port/lighttpd_port/lighttpd.conf`. Leave `server.d
 - **No CGI, and no TLS yet.** `mod_cgi` isn't available because there's no `fork()`. `mod_fastcgi`, `mod_scgi` and `mod_proxy` work with a backend that's already running on another machine. HTTPS isn't supported yet.
 
 If you serve file types the sample config doesn't list, add them to `mimetype.assign`. Anything not listed is sent as `application/octet-stream`.
+
+## Running it in BareMetal Cloud
+
+- Log into BareMetal Cloud at https://baremetal.returninfinity.com
+- Click on Images
+- In the Upload section click on Browse and select the `baremetal.elf` file, give it a name like "lighttpd unikernel", and click Upload
+- In the Upload section again click on Browse and select the `disk.img` file, give it a name like "lighttpd disk", and click Upload
+- Click on VMs
+- Click on New VM
+- Give the VM a name, select the kernel, from the Disk dropdown select From disk image, and then select the disk image
+- Click Create VM
+- Once the VM is created click on the Hostname to test access
+- [optional] To add custom hostnames, enter the name in the hostname panel to get the DNS records you would need to add to your DNS server entries. 
 
 ## Running it locally
 
@@ -106,15 +102,3 @@ Arguments to `./2-run.sh` and `./2-run-qemu.sh` are added to lighttpd's command 
 - The sample config turns on `mod_status`, so `/server-status` shows live connection stats.
 - The sample config also turns on directory listings, so a directory without an `index.html` shows its files. Set `dir-listing.activate = "disable"` in your config if you don't want that.
 
-
-## Running it in BareMetal Cloud
-
-- Log into BareMetal Cloud at https://baremetal.returninfinity.com
-- Click on Images
-- In the Upload section click on Browse and select the `baremetal.elf` file, give it a name like "lighttpd unikernel", and click Upload
-- In the Upload section again click on Browse and select the `disk.img` file, give it a name like "lighttpd disk", and click Upload
-- Click on VMs
-- Click on New VM
-- Give the VM a name, select the kernel, from the Disk dropdown select From disk image, and then select the disk image
-- Click Create VM
-- Once the VM is created click on the Hostname to test access
