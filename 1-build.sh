@@ -12,7 +12,9 @@ if [ -z "$1" ]; then
 	echo "       $0 <script.sql> [database.db|-]"
 	echo "       $0 <yourcrate/src/main.rs>"
 	echo "       $0 <program.zig>"
+	echo "       $0 <program.go>"
 	echo "       $0 lighttpd [lighttpd.conf] [docroot-dir]"
+	echo "       $0 caddy [Caddyfile] [site-dir]"
 	exit 1
 fi
 
@@ -226,6 +228,64 @@ lighttpd)
 
 	exit 0
 	;;
+caddy)
+	# Same shape as lighttpd above: caddy.app (the Caddy web server, see
+	# BareMetal-AppPort/CADDY.md and caddy.md here) runs whatever
+	# Caddyfile and site are on disk.img. install.sh puts the Caddyfile
+	# at /caddy/Caddyfile (the path caddy.app runs by default) and the
+	# site under /caddy/www. With no arguments, install.sh's own
+	# defaults are used: port/caddy_port/Caddyfile and its www/.
+	# BareMetal-AppPort/setup.sh builds caddy.app when Go is installed;
+	# if it didn't, build it now.
+	if [ "$#" -gt 3 ]; then
+		echo "Error: usage is $0 caddy [Caddyfile] [site-dir]"
+		exit 1
+	fi
+	INSTALL_ARGS=("$PWD/disk.img")
+	if [ -n "${2:-}" ]; then
+		if [ ! -f "$2" ]; then
+			echo "Error: $2 not found"
+			exit 1
+		fi
+		INSTALL_ARGS+=("$(realpath "$2")")
+	fi
+	if [ -n "${3:-}" ]; then
+		if [ ! -d "$3" ]; then
+			echo "Error: $3 is not a directory"
+			exit 1
+		fi
+		INSTALL_ARGS+=("$(realpath "$3")")
+	fi
+
+	PROG_APP="caddy.app"
+	echo "$PROG_APP" > .prog_app
+
+	if [ ! -f "disk.img" ]; then
+		echo "Error: disk.img is missing -- run ./setup.sh first." >&2
+		exit 1
+	fi
+	if [ ! -f "BareMetal-AppPort/$PROG_APP" ]; then
+		echo "Building $PROG_APP (first time only) ..."
+		(cd BareMetal-AppPort && APP_NAME="$PROG_APP" ./build-go-app.sh port/caddy_port)
+	fi
+
+	DEPLOY_LOG="/tmp/install-caddy-deploy.log"
+	echo "Deploying the Caddyfile and site to disk.img (log: $DEPLOY_LOG) ..."
+	if ! BareMetal-AppPort/port/caddy_port/install.sh "${INSTALL_ARGS[@]}" > "$DEPLOY_LOG" 2>&1; then
+		echo "error: install.sh failed -- see $DEPLOY_LOG" >&2
+		cat "$DEPLOY_LOG" >&2
+		exit 1
+	fi
+
+	cp "BareMetal-AppPort/$PROG_APP" BareMetal-Firecracker/sys
+	cd BareMetal-Firecracker
+	./build.sh "$PROG_APP"
+	cp sys/baremetal.elf ../
+	cd ..
+
+	echo "caddy.app needs at least 64MiB of boot memory: MEMSIZE=64 ./2-run.sh (QEMU's default 256MiB is fine)."
+	exit 0
+	;;
 *.rs)
 	if [ "$#" -gt 1 ]; then
 		echo "Error: only one .rs file is supported -- it must be <yourcrate>/src/main.rs, and BareMetal-AppPort/build-rust-app.sh builds the whole cargo crate it belongs to (see RUST.md)"
@@ -327,6 +387,37 @@ lighttpd)
 
 	cd BareMetal-AppPort
 	./build-zig-app.sh "$PROG_ZIG"
+	cp "$PROG_APP" ../BareMetal-Firecracker/sys
+	cd ..
+
+	cd BareMetal-Firecracker
+	./build.sh "$PROG_APP"
+	cp sys/baremetal.elf ../
+	cd ..
+
+	exit 0
+	;;
+*.go)
+	# A single-file Go main package, built by BareMetal-AppPort/
+	# build-go-app.sh with the host's own Go toolchain -- see
+	# BareMetal-AppPort/GO.md. (build-go-app.sh also takes a package
+	# directory inside a Go module; call it directly for that.)
+	if [ "$#" -gt 1 ]; then
+		echo "Error: only one .go file is supported (see BareMetal-AppPort/GO.md)"
+		exit 1
+	fi
+	PROG_GO="$1"
+	if [ ! -f "$PROG_GO" ]; then
+		echo "Error: $PROG_GO not found"
+		exit 1
+	fi
+
+	PROG_APP="$(basename "$PROG_GO" .go).app"
+	echo "$PROG_APP" > .prog_app
+
+	PROG_GO="$(realpath "$PROG_GO")"
+	cd BareMetal-AppPort
+	./build-go-app.sh "$PROG_GO"
 	cp "$PROG_APP" ../BareMetal-Firecracker/sys
 	cd ..
 
