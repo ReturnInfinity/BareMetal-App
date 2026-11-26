@@ -12,6 +12,7 @@ if [ -z "$1" ]; then
 	echo "       $0 <script.sql> [database.db|-]"
 	echo "       $0 <yourcrate/src/main.rs>"
 	echo "       $0 <program.zig>"
+	echo "       $0 <program.go>"
 	echo "       $0 lighttpd [lighttpd.conf] [docroot-dir]"
 	exit 1
 fi
@@ -327,6 +328,37 @@ lighttpd)
 
 	cd BareMetal-AppPort
 	./build-zig-app.sh "$PROG_ZIG"
+	cp "$PROG_APP" ../BareMetal-Firecracker/sys
+	cd ..
+
+	cd BareMetal-Firecracker
+	./build.sh "$PROG_APP"
+	cp sys/baremetal.elf ../
+	cd ..
+
+	exit 0
+	;;
+*.go)
+	# A single-file Go main package, built by BareMetal-AppPort/
+	# build-go-app.sh with the host's own Go toolchain -- see
+	# BareMetal-AppPort/GO.md. (build-go-app.sh also takes a package
+	# directory inside a Go module; call it directly for that.)
+	if [ "$#" -gt 1 ]; then
+		echo "Error: only one .go file is supported (see BareMetal-AppPort/GO.md)"
+		exit 1
+	fi
+	PROG_GO="$1"
+	if [ ! -f "$PROG_GO" ]; then
+		echo "Error: $PROG_GO not found"
+		exit 1
+	fi
+
+	PROG_APP="$(basename "$PROG_GO" .go).app"
+	echo "$PROG_APP" > .prog_app
+
+	PROG_GO="$(realpath "$PROG_GO")"
+	cd BareMetal-AppPort
+	./build-go-app.sh "$PROG_GO"
 	cp "$PROG_APP" ../BareMetal-Firecracker/sys
 	cd ..
 
