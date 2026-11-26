@@ -103,6 +103,14 @@ HOSTFWD=18080:80 ./2-run-qemu.sh
 curl http://127.0.0.1:18080/
 ```
 
+### Serve a website with Caddy
+
+```
+./1-build.sh caddy [Caddyfile] [site-dir]
+```
+
+The same idea with the [Caddy](https://caddyserver.com/) web server (`caddy.app`, see [caddy.md](caddy.md) and `BareMetal-AppPort/CADDY.md`), which adds HTTPS. `setup.sh` builds `caddy.app` if Go is installed; otherwise the first `./1-build.sh caddy` does. The Caddyfile goes to `/caddy/Caddyfile` on `disk.img` and the site to `/caddy/www`. Caddy needs more boot memory than the default: run it with `MEMSIZE=64 ./2-run.sh` (QEMU's default is enough).
+
 ## Run it
 
 ```

@@ -20,7 +20,7 @@
 #	SOCKET		Unix socket path used by the Firecracker API
 #	KERNEL		Path to the BareMetal ELF kernel image
 #	DISK		Path to the disk image
-#	MEMSIZE		VM boot memory size in MiB (must fit the kernel+app ELF)
+#	MEMSIZE		VM boot memory size in MiB (must fit the kernel+app ELF); can be set in the environment, e.g. MEMSIZE=64 ./2-run.sh
 #	DISKSIZE	Size of the disk image, created on first start (e.g. 512M)
 #	SESSION		Screen session name
 #	VMLOG		Path to the VM serial console log file
@@ -37,7 +37,7 @@ SOCKET=/tmp/firecracker.socket
 KERNEL="$PWD/baremetal.elf"
 DISK="$PWD/disk.img"
 CPUCOUNT=1
-MEMSIZE=4 # As of last webserver.py test Python needed at least 28MiB
+MEMSIZE=${MEMSIZE:-4} # As of last webserver.py test Python needed at least 28MiB; caddy.app needs 64
 DISKSIZE=512M
 SESSION=fc-vm
 FCLOG="/tmp/fc.log"
@@ -142,7 +142,7 @@ case "$cmd" in
 		kernel_size=$(wc -c < "$KERNEL")
 		min_mib=$(( (kernel_size + 1048575) / 1048576 + 2 ))
 		if [ "$MEMSIZE" -lt "$min_mib" ]; then
-			echo "Error: MEMSIZE=${MEMSIZE}MiB is too small for $KERNEL ($kernel_size bytes); needs at least ${min_mib}MiB" >&2
+			echo "Error: MEMSIZE=${MEMSIZE}MiB is too small for $KERNEL ($kernel_size bytes); needs at least ${min_mib}MiB (e.g. MEMSIZE=${min_mib} ./2-run.sh)" >&2
 			exit 1
 		fi
 
